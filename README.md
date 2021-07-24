@@ -1,2 +1,8 @@
 # Monitor-Produtos
-Monitoramento geral de produtos w/ python requests
+- ...
+
+## Objetivo:
+- Monitorar o estoque de produtos de diversas lojas
+
+## Utilização da biblioteca requests (python):
+- https://docs.python-requests.org/en/master/
