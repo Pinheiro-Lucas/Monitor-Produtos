@@ -7,12 +7,17 @@ import os
 config = json.load(open('config.json', 'r'))
 webhook = config['webhook']
 delay = config['delay']
+ultimo_produto = ''
+
+if webhook.count('http') == 0:
+    print('[ERRO] Insira um Webhook válido')
+    exit()
 
 # Se não tiver o arquivo 'links.json', ele cria um vazio
 if not os.path.isfile('links.json'):
     print('[LOG] Criando arquivo de Links..')
     arquivo = open('links.json', 'w')
-    json.dump({}, arquivo)
+    json.dump({"jbl": [], "kabum": []}, arquivo)
     arquivo.close()
     print('[LOG] Arquivo dos Links criado com sucesso.')
 
@@ -31,21 +36,21 @@ def em_estoque(qtd_est, item):
     return qtd_est
 
 def estrutura_webhook(produto):
-    # https://discord.com/developers/docs/resources/webhook#execute-webhook
-    # https://discord.com/developers/docs/resources/channel#embed-object
     # Criação da estrutura + embed
     estrutura = {"username": "BOT RESTOCK", "content": produto}
     return estrutura
 
 def checar(produtos, soldout, qtd_esg, qtd_est):
-    global webhook
+    global webhook, ultimo_produto
     for produto in produtos:
         # Checagem do estoque
         tentativa2 = requests.get(produto)
         if tentativa2.text.lower().count(soldout) > 0:
             qtd_esg = esgotado(qtd_esg, produto)
         else:
-            requests.post(webhook, json=estrutura_webhook(produto))
+            if not produto == ultimo_produto:
+                requests.post(webhook, json=estrutura_webhook(produto))
+            ultimo_produto = produto
             qtd_est = em_estoque(qtd_est, produto)
     return qtd_esg, qtd_est
 
@@ -64,22 +69,26 @@ def checar_estoque(lista):
                 soldout = 'not-available'
                 produtos = lista.get("jbl")
                 qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
+            elif item == 'kabum':
+                soldout = 'produto_indisponivel'
+                produtos = lista.get("kabum")
+                qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
 
 # Função para adicionar Links/Lojas
 def adicionar_url():
     # Coleta as informações
     loja = ''
-    while loja.lower() not in ('jbl', 'nike'):
-        loja = input('Insira o nome da loja (jbl ou nike): ')
+    while loja.lower() not in ('jbl', 'kabum'):
+        loja = input('Insira o nome da loja (jbl ou kabum): ')
     nova_url = input('Insira a URL do produto: ')
     
     # Carrega o arquivo
     info = json.load(open('links.json', 'r'))
 
     # Checa se a URL já foi cadastrada
-    if nova_url in info.get(loja):
+    if loja in info.keys() and nova_url in info.get(loja):
         print('\n[AVISO] URL já cadastrada!')
-    elif nova_url.find('http') < 0:
+    elif nova_url.count('http') == 0:
         print('\n[AVISO] Insira uma URL válida!')
     else:
         # Checa se a loja já contém alguma URL
