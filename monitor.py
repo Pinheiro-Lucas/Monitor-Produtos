@@ -30,6 +30,25 @@ def em_estoque(qtd_est, item):
     time.sleep(delay)
     return qtd_est
 
+def estrutura_webhook(produto):
+    # https://discord.com/developers/docs/resources/webhook#execute-webhook
+    # https://discord.com/developers/docs/resources/channel#embed-object
+    # Criação da estrutura + embed
+    estrutura = {"username": "BOT RESTOCK", "content": produto}
+    return estrutura
+
+def checar(produtos, soldout, qtd_esg, qtd_est):
+    global webhook
+    for produto in produtos:
+        # Checagem do estoque
+        tentativa2 = requests.get(produto)
+        if tentativa2.text.lower().count(soldout) > 0:
+            qtd_esg = esgotado(qtd_esg, produto)
+        else:
+            requests.post(webhook, json=estrutura_webhook(produto))
+            qtd_est = em_estoque(qtd_est, produto)
+    return qtd_esg, qtd_est
+
 # Função de checagem de estoque
 def checar_estoque(lista):
     print('[LOG] Checando estoques:')
@@ -38,16 +57,13 @@ def checar_estoque(lista):
 
     # Fica checando o estoque de cada produto
     while True:
+        # Cada loja existe uma técnica de checagem
         for item in lista.keys():
+            # Lista os produtos cadastrados
             if item == 'jbl':
+                soldout = 'not-available'
                 produtos = lista.get("jbl")
-                for produto in produtos:
-                    tentativa2 = requests.get(produto)
-                    # Falta função de detecção de cada site
-                    if tentativa2.text.lower().count('not-available') > 0:
-                        qtd_esg = esgotado(qtd_esg, produto)
-                    else:
-                        qtd_est = em_estoque(qtd_est, produto)
+                qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
 
 # Função para adicionar Links/Lojas
 def adicionar_url():
@@ -57,35 +73,41 @@ def adicionar_url():
         loja = input('Insira o nome da loja (jbl ou nike): ')
     nova_url = input('Insira a URL do produto: ')
     
-    # Salva no arquivo
+    # Carrega o arquivo
     info = json.load(open('links.json', 'r'))
-    if loja in info.keys():
-        info_antiga = info.get(loja)
-        info_antiga.append(nova_url)
-        info.update({loja: info_antiga})
+
+    # Checa se a URL já foi cadastrada
+    if nova_url in info.get(loja):
+        print('\n[AVISO] URL já cadastrada!')
+    elif nova_url.find('http') < 0:
+        print('\n[AVISO] Insira uma URL válida!')
     else:
-        info.update({loja: nova_url})
-    json.dump(info, open('links.json', 'w'))
-    menu_escolhas()
+        # Checa se a loja já contém alguma URL
+        if loja in info.keys():
+            info_antiga = info.get(loja)
+            info_antiga.append(nova_url)
+            info.update({loja: info_antiga})
+        else:
+            info.update({loja: nova_url})
+        # Salva o arquivo
+        json.dump(info, open('links.json', 'w'))
 
 
 # Ao abrir, escolher uma das opções
-def menu_escolhas():
-    escolha = ''
-    while escolha not in ('1', '2'):
-        escolha = input("""
-                            ESCOLHA UMA OPÇÃO:
-                            [1] Adicionar URL
-                            [2] Checar Estoques
-    
-                        """)
+escolha = ''
+flag = False
+while escolha not in ('1', '2') or not flag:
+    escolha = input("""
+                        ESCOLHA UMA OPÇÃO:
+                        [1] Adicionar URL
+                        [2] Checar Estoques
+
+                    """)
 
     if escolha == '1':
         # Preciso fazer ainda
         adicionar_url()
     elif escolha == '2':
         # Inicia o monitoramento
+        flag = True
         checar_estoque(json.load(open('links.json', 'r')))
-
-
-menu_escolhas()
