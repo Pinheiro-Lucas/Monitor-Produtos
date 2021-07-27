@@ -12,7 +12,7 @@ delay = config['delay']
 if not os.path.isfile('links.json'):
     print('[LOG] Criando arquivo de Links..')
     arquivo = open('links.json', 'w')
-    json.dump([], arquivo)
+    json.dump({}, arquivo)
     arquivo.close()
     print('[LOG] Arquivo dos Links criado com sucesso.')
 
@@ -44,20 +44,43 @@ def checar_estoque(lista):
             else:
                 em_estoque(qtd_est, item)
 
+# Função para adicionar Links/Lojas
+def adicionar_url():
+    # Coleta as informações
+    loja = ''
+    while loja.lower() not in ('jbl', 'nike'):
+        loja = input('Insira o nome da loja (jbl ou nike): ')
+    nova_url = input('Insira a URL do produto: ')
+    
+    # Salva no arquivo
+    info = json.load(open('links.json', 'r'))
+    if loja in info.keys():
+        info_antiga = info.get(loja)
+        info_antiga.append(nova_url)
+        info.update({loja: info_antiga})
+    else:
+        info.update({loja: nova_url})
+    json.dump(info, open('links.json', 'w'))
+    menu_escolhas()
+
 
 # Ao abrir, escolher uma das opções
-escolha = ''
-while escolha not in ('1', '2'):
-    escolha = input("""
-                        ESCOLHA UMA OPÇÃO:
-                        [1] Checar URLs
-                        [2] Checar Estoques
+def menu_escolhas():
+    escolha = ''
+    while escolha not in ('1', '2'):
+        escolha = input("""
+                            ESCOLHA UMA OPÇÃO:
+                            [1] Adicionar URL
+                            [2] Checar Estoques
+    
+                        """)
 
-                    """)
+    if escolha == '1':
+        # Preciso fazer ainda
+        adicionar_url()
+    elif escolha == '2':
+        # Inicia o monitoramento
+        checar_estoque(json.load(open('links.json', 'r')))
 
-if escolha == '1':
-    # Preciso fazer ainda
-    print()
-elif escolha == '2':
-    # Inicia o monitoramento
-    checar_estoque(json.load(open('links.json', 'r')))
+
+menu_escolhas()
