@@ -2,6 +2,8 @@ import requests
 import json
 import time
 import os
+import signal
+# 9751 - import signal added for timed options.
 
 # Importando configurações
 config = json.load(open('config.json', 'r'))
@@ -37,7 +39,7 @@ def em_estoque(qtd_est, item):
 
 def estrutura_webhook(produto):
     # Criação da estrutura + embed
-    estrutura = {"username": "BOT RESTOCK", "content": produto}
+    estrutura = {"username": "MONITOR DE PRODUTOS", "content": produto}
     return estrutura
 
 def checar(produtos, soldout, qtd_esg, qtd_est):
@@ -81,7 +83,7 @@ def adicionar_url():
     while loja.lower() not in ('jbl', 'kabum'):
         loja = input('Insira o nome da loja (jbl ou kabum): ')
     nova_url = input('Insira a URL do produto: ')
-    
+
     # Carrega o arquivo
     info = json.load(open('links.json', 'r'))
 
@@ -102,10 +104,22 @@ def adicionar_url():
         json.dump(info, open('links.json', 'w'))
 
 
+# 9751 - Options timer
+TIMEOUT = 10
+def interrupted(signum, frame):
+    "Escolha automática."
+    print ('Opção 2 escolhida automaticamente.')
+    flag = True
+    checar_estoque(json.load(open('links.json', 'r')))
+signal.signal(signal.SIGALRM, interrupted)
+
+
 # Ao abrir, escolher uma das opções
 escolha = ''
 flag = False
 while escolha not in ('1', '2') or not flag:
+    # 9751 - timeout enabled
+    signal.alarm(TIMEOUT)
     escolha = input("""
                         ESCOLHA UMA OPÇÃO:
                         [1] Adicionar URL
@@ -114,9 +128,13 @@ while escolha not in ('1', '2') or not flag:
                     """)
 
     if escolha == '1':
+        # 9751 - timeout disable
+        signal.alarm(0)
         # Preciso fazer ainda
         adicionar_url()
     elif escolha == '2':
+        # 9751 - timeout disable
+        signal.alarm(0)
         # Inicia o monitoramento
         flag = True
         checar_estoque(json.load(open('links.json', 'r')))
