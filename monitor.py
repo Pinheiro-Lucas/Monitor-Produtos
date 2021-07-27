@@ -21,12 +21,14 @@ def esgotado(qtd_esg, item):
     qtd_esg += 1
     print(f'[{qtd_esg}] ESGOTADO: {item}')
     time.sleep(delay)
+    return qtd_esg
 
 # Adiantando uma função que será necessária futuramente
 def em_estoque(qtd_est, item):
     qtd_est += 1
     print(f'[{qtd_est}] EM ESTOQUE: {item}')
     time.sleep(delay)
+    return qtd_est
 
 # Função de checagem de estoque
 def checar_estoque(lista):
@@ -36,13 +38,16 @@ def checar_estoque(lista):
 
     # Fica checando o estoque de cada produto
     while True:
-        for item in lista:
-            tentativa2 = requests.get(item)
-            # Falta função de detecção de cada site
-            if tentativa2.text.lower().count('not-available') > 0:
-                esgotado(qtd_esg, item)
-            else:
-                em_estoque(qtd_est, item)
+        for item in lista.keys():
+            if item == 'jbl':
+                produtos = lista.get("jbl")
+                for produto in produtos:
+                    tentativa2 = requests.get(produto)
+                    # Falta função de detecção de cada site
+                    if tentativa2.text.lower().count('not-available') > 0:
+                        qtd_esg = esgotado(qtd_esg, produto)
+                    else:
+                        qtd_est = em_estoque(qtd_est, produto)
 
 # Função para adicionar Links/Lojas
 def adicionar_url():
