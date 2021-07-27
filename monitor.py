@@ -2,6 +2,7 @@ import requests
 import json
 import time
 import os
+from threading import Timer
 
 # Importando configurações
 config = json.load(open('config.json', 'r'))
@@ -102,9 +103,18 @@ def adicionar_url():
         json.dump(info, open('links.json', 'w'))
 
 
+def _10segundos():
+    checar_estoque(json.load(open('links.json', 'r')))
+
+
+# Timer caso não haja escolha ele comece a monitorar
+timer = Timer(10, _10segundos)
+timer.start()
+
 # Ao abrir, escolher uma das opções
 escolha = ''
 flag = False
+
 while escolha not in ('1', '2') or not flag:
     escolha = input("""
                         ESCOLHA UMA OPÇÃO:
@@ -114,9 +124,10 @@ while escolha not in ('1', '2') or not flag:
                     """)
 
     if escolha == '1':
-        # Preciso fazer ainda
+        timer.cancel()
         adicionar_url()
     elif escolha == '2':
         # Inicia o monitoramento
+        timer.cancel()
         flag = True
         checar_estoque(json.load(open('links.json', 'r')))
