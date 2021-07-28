@@ -18,7 +18,7 @@ if webhook.count('http') == 0:
 if not os.path.isfile('links.json'):
     print('[LOG] Criando arquivo de Links..')
     arquivo = open('links.json', 'w')
-    json.dump({"jbl": [], "kabum": []}, arquivo)
+    json.dump({"jbl": [], "kabum": [], "magalu": []}, arquivo)
     arquivo.close()
     print('[LOG] Arquivo dos Links criado com sucesso.')
 
@@ -74,13 +74,17 @@ def checar_estoque(lista):
                 soldout = 'produto_indisponivel'
                 produtos = lista.get("kabum")
                 qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
+            elif item == 'magalu':
+                soldout = 'unavailable__product-title'
+                produtos = lista.get("magalu")
+                qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
 
 # Função para adicionar Links/Lojas
 def adicionar_url():
     # Coleta as informações
     loja = ''
-    while loja.lower() not in ('jbl', 'kabum'):
-        loja = input('Insira o nome da loja (jbl ou kabum): ')
+    while loja.lower() not in ('jbl', 'kabum', 'magalu'):
+        loja = input('Insira o nome da loja (jbl, kabum, magalu): ')
     nova_url = input('Insira a URL do produto: ')
     
     # Carrega o arquivo
