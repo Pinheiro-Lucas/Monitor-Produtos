@@ -3,6 +3,7 @@ import json
 import time
 import os
 from threading import Timer
+from bs4 import BeautifulSoup
 
 # Importando configurações
 config = json.load(open('config.json', 'r'))
@@ -37,22 +38,41 @@ def em_estoque(qtd_est, item):
     return qtd_est
 
 def estrutura_webhook(produto):
-    # Criação da estrutura + embed
-    estrutura = {"username": "BOT RESTOCK", "content": produto}
+    # Criação da estrutura
+    estrutura = {"username": "MONITOR DE PRODUTOS", "content": produto}
+    # Já deixei na função caso queira adicionar e organizar a parte Embed
     return estrutura
 
-def checar(produtos, soldout, qtd_esg, qtd_est):
+def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
     global webhook, ultimo_produto
     for produto in produtos:
         # Checagem do estoque
-        tentativa2 = requests.get(produto)
-        if tentativa2.text.lower().count(soldout) > 0:
-            qtd_esg = esgotado(qtd_esg, produto)
+        tentativa2 = requests.get(produto[0])
+
+        # Utilização de raspagem de dados (nesse caso: o preço)
+        soup = BeautifulSoup(tentativa2.text, features="lxml")
+        preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2]})
+
+        # Manipulação dos dados
+        preco_real = ''
+        for i in list(str(preco)):
+            if i in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+                preco_real += i
+
+        # Encontrado o preço (em int e sem ,00)
+        preco = int(preco_real[0:len(preco_real) - 2])
+
+        # Se tiver estoque e se o preço do produto é menor do que o preço esperado
+        if tentativa2.text.lower().count(soldout) > 0 or preco >= produto[1]:
+            if produto[0] == ultimo_produto:
+                ultimo_produto = ''
+            qtd_esg = esgotado(qtd_esg, produto[0])
         else:
-            if not produto == ultimo_produto:
-                requests.post(webhook, json=estrutura_webhook(produto))
-            ultimo_produto = produto
-            qtd_est = em_estoque(qtd_est, produto)
+            # Fix para não ficar apitando o mesmo produto milhares de vezes
+            if not produto[0] == ultimo_produto:
+                requests.post(webhook, json=estrutura_webhook(produto[0]))
+            ultimo_produto = produto[0]
+            qtd_est = em_estoque(qtd_est, produto[0])
     return qtd_esg, qtd_est
 
 # Função de checagem de estoque
@@ -68,24 +88,33 @@ def checar_estoque(lista):
             # Lista os produtos cadastrados
             if item == 'jbl':
                 soldout = 'not-available'
+                preco_atual = ['span', 'class', 'boleto-price']
                 produtos = lista.get("jbl")
-                qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
+                qtd_esg, qtd_est = checar(produtos, soldout, preco_atual, qtd_esg, qtd_est)
             elif item == 'kabum':
                 soldout = 'produto_indisponivel'
+                preco_atual = ['span', 'class', 'preco_desconto_avista-cm']
                 produtos = lista.get("kabum")
-                qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
+                qtd_esg, qtd_est = checar(produtos, soldout, preco_atual, qtd_esg, qtd_est)
             elif item == 'magalu':
                 soldout = 'unavailable__product-title'
+                preco_atual = ['span', 'class', 'price-template__text']
                 produtos = lista.get("magalu")
-                qtd_esg, qtd_est = checar(produtos, soldout, qtd_esg, qtd_est)
+                qtd_esg, qtd_est = checar(produtos, soldout, preco_atual, qtd_esg, qtd_est)
 
 # Função para adicionar Links/Lojas
 def adicionar_url():
     # Coleta as informações
-    loja = ''
-    while loja.lower() not in ('jbl', 'kabum', 'magalu'):
-        loja = input('Insira o nome da loja (jbl, kabum, magalu): ')
-    nova_url = input('Insira a URL do produto: ')
+    loja, nova_url, preco = '', '', -1
+
+    while loja not in ('jbl', 'kabum', 'magalu'):
+        loja = input('Insira o nome da loja (jbl, kabum, magalu): ').lower()
+
+    while nova_url.count('http') == 0:
+        nova_url = input('Insira a URL do produto: ')
+
+    while preco == -1:
+        preco = int(input('Insira o preço máximo sem vírgula ou ponto (0 = sem max.): '))
     
     # Carrega o arquivo
     info = json.load(open('links.json', 'r'))
@@ -93,16 +122,14 @@ def adicionar_url():
     # Checa se a URL já foi cadastrada
     if loja in info.keys() and nova_url in info.get(loja):
         print('\n[AVISO] URL já cadastrada!')
-    elif nova_url.count('http') == 0:
-        print('\n[AVISO] Insira uma URL válida!')
     else:
         # Checa se a loja já contém alguma URL
         if loja in info.keys():
             info_antiga = info.get(loja)
-            info_antiga.append(nova_url)
+            info_antiga.append([nova_url, preco])
             info.update({loja: info_antiga})
         else:
-            info.update({loja: nova_url})
+            info.update({loja: [nova_url, preco]})
         # Salva o arquivo
         json.dump(info, open('links.json', 'w'))
 

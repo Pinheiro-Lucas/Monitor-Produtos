@@ -1,9 +1,10 @@
 # Monitor-Produtos
-- O monitor está em fase de testes, ainda não foi lançado;
+- Monitoramento de estoque e preço
+- Está em fase de testes, ainda não foi lançado;
 - O sistema de adicionar lojas é simples e qualquer loja pode ser sugerida.
 
 ## Objetivo:
-- Monitorar o estoque de produtos de diversas lojas para encontrar algum produto desejado.
+- Monitorar o estoque e o preço de produtos para encontrar algum desejado.
 
 ## Como usar:
 - ``pip install -r requirements.txt``
@@ -13,5 +14,6 @@
 
 ## Utilizado no projeto:
 - https://docs.python-requests.org/en/master/
+- https://www.crummy.com/software/BeautifulSoup/bs4/doc/
 - https://discord.com/developers/docs/resources/webhook#execute-webhook
 - https://discord.com/developers/docs/resources/channel#embed-object
