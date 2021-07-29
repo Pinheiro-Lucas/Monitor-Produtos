@@ -46,14 +46,15 @@ def estrutura_webhook(produto):
 def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
     global webhook, ultimo_produto
     for produto in produtos:
+
         # Checagem do estoque
         tentativa2 = requests.get(produto[0])
 
         # Utilização de raspagem de dados (nesse caso: o preço)
-        soup = BeautifulSoup(tentativa2.text, features="lxml")
+        soup = BeautifulSoup(tentativa2.text, features="html.parser")
         preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2]})
 
-        # Manipulação dos dados
+        # Filtrando os dados
         preco_real = ''
         for i in list(str(preco)):
             if i in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
