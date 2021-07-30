@@ -37,6 +37,12 @@ def em_estoque(qtd_est, item):
     time.sleep(delay)
     return qtd_est
 
+def preco_alto(qtd_esg, item):
+    qtd_esg += 1
+    print(f'[{qtd_esg}] PREÇO ALTO: {item}')
+    time.sleep(delay)
+    return qtd_esg
+
 def estrutura_webhook(produto):
     # Criação da estrutura
     estrutura = {"username": "MONITOR DE PRODUTOS", "content": produto}
@@ -47,33 +53,48 @@ def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
     global webhook, ultimo_produto
     for produto in produtos:
 
-        # Checagem do estoque
+        # Recupera os elementos da página
         tentativa2 = requests.get(produto[0])
 
-        # Utilização de raspagem de dados (nesse caso: o preço)
-        soup = BeautifulSoup(tentativa2.text, features="html.parser")
-        preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2]})
-
-        # Filtrando os dados
-        preco_real = ''
-        for i in list(str(preco)):
-            if i in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
-                preco_real += i
-
-        # Encontrado o preço (em int e sem ,00)
-        preco = int(preco_real[0:len(preco_real) - 2])
-
-        # Se tiver estoque e se o preço do produto é menor do que o preço esperado
-        if tentativa2.text.lower().count(soldout) > 0 or preco >= produto[1]:
+        # Se não tiver estoque
+        if tentativa2.text.lower().count(soldout) > 0:
+            # Log de esgotado
+            qtd_esg = esgotado(qtd_esg, produto[0])
+            # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
             if produto[0] == ultimo_produto:
                 ultimo_produto = ''
-            qtd_esg = esgotado(qtd_esg, produto[0])
+
+        # Se tiver estoque
         else:
-            # Fix para não ficar apitando o mesmo produto milhares de vezes
-            if not produto[0] == ultimo_produto:
-                requests.post(webhook, json=estrutura_webhook(produto[0]))
-            ultimo_produto = produto[0]
-            qtd_est = em_estoque(qtd_est, produto[0])
+            # Utilização de raspagem de dados (nesse caso: o preço)
+            soup = BeautifulSoup(tentativa2.text, features="html.parser")
+            preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2]})
+
+            # Filtrando os dados
+            preco_real = ''
+            for i in list(str(preco)):
+                if i in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+                    preco_real += i
+
+            # Encontrado o preço (em int e sem ,00)
+            preco = int(preco_real[0:len(preco_real) - 2])
+
+            # Se o preço do produto em estoque for menor ou igual ao esperado
+            if preco <= produto[1]:
+                # Fix para não ficar apitando o mesmo produto milhares de vezes
+                if not produto[0] == ultimo_produto:
+                    requests.post(webhook, json=estrutura_webhook(produto[0]))
+                ultimo_produto = produto[0]
+                # Log dos produtos em estoque com o preço bom
+                qtd_est = em_estoque(qtd_est, produto[0])
+            # Se o preço não estiver bom
+            else:
+                # Log de preço alto
+                qtd_esg = preco_alto(qtd_esg, produto[0])
+                # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
+                if produto[0] == ultimo_produto:
+                    ultimo_produto = ''
+
     return qtd_esg, qtd_est
 
 # Função de checagem de estoque
