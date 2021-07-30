@@ -56,19 +56,16 @@ def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
         # Recupera os elementos da página
         tentativa2 = requests.get(produto[0])
 
-        # Se não tiver estoque
-        if tentativa2.text.lower().count(soldout) > 0:
-            # Log de esgotado
-            qtd_esg = esgotado(qtd_esg, produto[0])
-            # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
-            if produto[0] == ultimo_produto:
-                ultimo_produto = ''
-
         # Se tiver estoque
-        else:
+        if tentativa2.text.lower().count(soldout) == 0:
+
             # Utilização de raspagem de dados (nesse caso: o preço)
             soup = BeautifulSoup(tentativa2.text, features="html.parser")
-            preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2]})
+            preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2][0]})
+
+            # Tenta a segunda opção de procura pelo preço (lojas com diferentes displays de produtos)
+            if not preco:
+                preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2][1]})
 
             # Filtrando os dados
             preco_real = ''
@@ -94,7 +91,13 @@ def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
                 # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
                 if produto[0] == ultimo_produto:
                     ultimo_produto = ''
-
+        # Esgotado
+        else:
+            # Log de esgotado
+            qtd_esg = esgotado(qtd_esg, produto[0])
+            # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
+            if produto[0] == ultimo_produto:
+                ultimo_produto = ''
     return qtd_esg, qtd_est
 
 # Função de checagem de estoque
@@ -110,17 +113,17 @@ def checar_estoque(lista):
             # Lista os produtos cadastrados
             if item == 'jbl':
                 soldout = 'not-available'
-                preco_atual = ['span', 'class', 'boleto-price']
+                preco_atual = ['span', 'class', ['boleto-price']]
                 produtos = lista.get("jbl")
                 qtd_esg, qtd_est = checar(produtos, soldout, preco_atual, qtd_esg, qtd_est)
             elif item == 'kabum':
                 soldout = 'produto_indisponivel'
-                preco_atual = ['span', 'class', 'preco_desconto_avista-cm']
+                preco_atual = ['span', 'class', ['preco_desconto_avista-cm', 'preco_desconto']]
                 produtos = lista.get("kabum")
                 qtd_esg, qtd_est = checar(produtos, soldout, preco_atual, qtd_esg, qtd_est)
             elif item == 'magalu':
                 soldout = 'unavailable__product-title'
-                preco_atual = ['span', 'class', 'price-template__text']
+                preco_atual = ['span', 'class', ['price-template__text']]
                 produtos = lista.get("magalu")
                 qtd_esg, qtd_est = checar(produtos, soldout, preco_atual, qtd_esg, qtd_est)
 
