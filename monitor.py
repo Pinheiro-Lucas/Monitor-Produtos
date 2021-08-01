@@ -80,10 +80,10 @@ def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
             if preco == '':
                 preco = None
             else:
-                int(preco)
+                preco = int(preco)
 
             # Se o preço do produto em estoque for menor ou igual ao esperado
-            if preco <= produto[1] and not None:
+            if preco is not None and preco <= produto[1]:
                 # Fix para não ficar apitando o mesmo produto milhares de vezes
                 if not produto[0] == ultimo_produto:
                     requests.post(webhook, json=estrutura_webhook(produto[0]))
