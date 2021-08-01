@@ -74,10 +74,16 @@ def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
                     preco_real += i
 
             # Encontrado o preço (em int e sem ,00)
-            preco = int(preco_real[0:len(preco_real) - 2])
+            preco = preco_real[0:len(preco_real) - 2]
+
+            # Depois de rodar algumas milhares de vezes, o site pode falhar em retornar e isso previne crashs
+            if preco == '':
+                preco = None
+            else:
+                int(preco)
 
             # Se o preço do produto em estoque for menor ou igual ao esperado
-            if preco <= produto[1]:
+            if preco <= produto[1] and not None:
                 # Fix para não ficar apitando o mesmo produto milhares de vezes
                 if not produto[0] == ultimo_produto:
                     requests.post(webhook, json=estrutura_webhook(produto[0]))
