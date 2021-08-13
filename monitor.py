@@ -54,56 +54,62 @@ def checar(produtos, soldout, preco_atual, qtd_esg, qtd_est):
     for produto in produtos:
 
         # Recupera os elementos da página
-        tentativa2 = requests.get(produto[0])
+        try:
+            tentativa2 = requests.get(produto[0], allow_redirects=False)
 
-        # Se tiver estoque
-        if tentativa2.text.lower().count(soldout) == 0:
+            # Se tiver estoque
+            if tentativa2.text.lower().count(soldout) == 0:
 
-            # Utilização de raspagem de dados (nesse caso: o preço)
-            soup = BeautifulSoup(tentativa2.text, features="html.parser")
-            preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2][0]})
+                # Utilização de raspagem de dados (nesse caso: o preço)
+                soup = BeautifulSoup(tentativa2.text, features="html.parser")
+                preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2][0]})
 
-            # Tenta a segunda opção de procura pelo preço (lojas com diferentes displays de produtos)
-            if not preco:
-                preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2][1]})
+                # Tenta a segunda opção de procura pelo preço (lojas com diferentes displays de produtos)
+                if not preco:
+                    preco = soup.find_all(preco_atual[0], {preco_atual[1]: preco_atual[2][1]})
 
-            # Filtrando os dados
-            preco_real = ''
-            for i in list(str(preco)):
-                if i in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
-                    preco_real += i
+                # Filtrando os dados
+                preco_real = ''
+                for i in list(str(preco)):
+                    if i in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+                        preco_real += i
 
-            # Encontrado o preço (em int e sem ,00)
-            preco = preco_real[0:len(preco_real) - 2]
+                # Encontrado o preço (em int e sem ,00)
+                preco = preco_real[0:len(preco_real) - 2]
 
-            # Depois de rodar algumas milhares de vezes, o site pode falhar em retornar e isso previne crashs
-            if preco == '':
-                preco = None
+                # Depois de rodar algumas milhares de vezes, o site pode falhar em retornar e isso previne crashs
+                if preco == '':
+                    preco = None
+                else:
+                    preco = int(preco)
+
+                # Se o preço do produto em estoque for menor ou igual ao esperado
+                if preco is not None and preco <= produto[1]:
+                    # Fix para não ficar apitando o mesmo produto milhares de vezes
+                    if not produto[0] == ultimo_produto:
+                        requests.post(webhook, json=estrutura_webhook(produto[0]))
+                    ultimo_produto = produto[0]
+                    # Log dos produtos em estoque com o preço bom
+                    qtd_est = em_estoque(qtd_est, produto[0])
+                # Se o preço não estiver bom
+                else:
+                    # Log de preço alto
+                    qtd_esg = preco_alto(qtd_esg, produto[0])
+                    # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
+                    if produto[0] == ultimo_produto:
+                        ultimo_produto = ''
+            # Esgotado
             else:
-                preco = int(preco)
-
-            # Se o preço do produto em estoque for menor ou igual ao esperado
-            if preco is not None and preco <= produto[1]:
-                # Fix para não ficar apitando o mesmo produto milhares de vezes
-                if not produto[0] == ultimo_produto:
-                    requests.post(webhook, json=estrutura_webhook(produto[0]))
-                ultimo_produto = produto[0]
-                # Log dos produtos em estoque com o preço bom
-                qtd_est = em_estoque(qtd_est, produto[0])
-            # Se o preço não estiver bom
-            else:
-                # Log de preço alto
-                qtd_esg = preco_alto(qtd_esg, produto[0])
+                # Log de esgotado
+                qtd_esg = esgotado(qtd_esg, produto[0])
                 # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
                 if produto[0] == ultimo_produto:
                     ultimo_produto = ''
-        # Esgotado
-        else:
-            # Log de esgotado
-            qtd_esg = esgotado(qtd_esg, produto[0])
-            # Se o último produto com estoque estiver sem estoque, ele reseta para não bugar
-            if produto[0] == ultimo_produto:
-                ultimo_produto = ''
+
+        # Caso o Link esteja errado ele avisará
+        except:
+            requests.post(webhook, json=estrutura_webhook(f'**OCORREU UM ERRO AO MONITORAR O PRODUTO:** {produto[0]}'))
+
     return qtd_esg, qtd_est
 
 # Função de checagem de estoque
@@ -146,7 +152,7 @@ def adicionar_url():
 
     while preco == -1:
         preco = int(input('Insira o preço máximo sem vírgula ou ponto (0 = sem max.): '))
-    
+
     # Carrega o arquivo
     info = json.load(open('links.json', 'r'))
 
@@ -165,12 +171,23 @@ def adicionar_url():
         json.dump(info, open('links.json', 'w'))
 
 
-def _10segundos():
-    checar_estoque(json.load(open('links.json', 'r')))
+erros = 0
+def iniciar():
+    global erros
+    try:
+        checar_estoque(json.load(open('links.json', 'r')))
+    finally:
+        erros += 1
+        if not erros > 5:
+            requests.post(webhook, json=estrutura_webhook('__**OCORREU UM ERRO AO INICIAR O MONITORAMENTO**__'))
+            iniciar()
+        else:
+            print('[AVISO] Máximo de tentativas atingido')
+            exit()
 
 
 # Timer caso não haja escolha ele comece a monitorar
-timer = Timer(10, _10segundos)
+timer = Timer(10, iniciar)
 timer.start()
 
 # Ao abrir, escolher uma das opções
@@ -192,4 +209,4 @@ while escolha not in ('1', '2') or not flag:
         # Inicia o monitoramento
         timer.cancel()
         flag = True
-        checar_estoque(json.load(open('links.json', 'r')))
+        iniciar()
